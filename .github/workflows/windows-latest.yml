@@ -1,0 +1,36 @@
+name: Windows Latest Server Configuration Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check_config_latest:
+    runs-on: windows-latest
+    steps:
+      - name: Display Server Configuration
+        shell: pwsh
+        run: |
+          Write-Host "`nServer Configuration:"
+          Write-Host "--------------------------------------------------"
+          $cpu = Get-CimInstance Win32_Processor
+          $gpu = Get-CimInstance Win32_VideoController
+          $ram = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory
+          $os = (Get-CimInstance Win32_OperatingSystem).Caption
+          $cpu_name = $cpu.Name
+          $cores = $cpu.NumberOfCores
+          $threads = $cpu.NumberOfLogicalProcessors
+          $ghz = [Math]::Round($cpu.MaxClockSpeed / 1000, 2)
+          $gpu_names = ($gpu | Select-Object -ExpandProperty Caption) -join ", "
+          $ram_gb = [math]::Round($ram / 1GB, 1)
+          $ram_mb = [math]::Round($ram / 1MB, 1)
+          $ram_human = "$($ram_gb) GB ($($ram_mb) MB)"
+          try { $ip4 = Invoke-RestMethod -Uri https://ipv4.seeip.org -TimeoutSec 3 } catch { $ip4 = $null }
+          try { $ip6 = Invoke-RestMethod -Uri https://ipv6.seeip.org -TimeoutSec 3 } catch { $ip6 = $null }
+          Write-Host "CPU: $cpu_name, $cores cores, $threads threads, ~$ghz GHz"
+          Write-Host "GPU: $gpu_names"
+          Write-Host "RAM: $ram_human"
+          Write-Host "Operating System: $os"
+          if ($ip4) { Write-Host "IP v4: $ip4" }
+          if ($ip6) { Write-Host "IP v6: $ip6" }
+          if (-not $ip4 -and -not $ip6) { Write-Host "Could not retrieve external IP address. Does the server have network connectivity?" }
+          Write-Host "--------------------------------------------------"
